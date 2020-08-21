@@ -20,7 +20,7 @@ app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Methods", "PUT,PATCH,POST,GET,DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "*");
     if(req.path === "/favicon.ico"){
-        res.replSetGetStatus(404);
+        res.sendStatus(404);
     } else {
         next();
     }
@@ -55,7 +55,7 @@ app.use(async (req, res, next) => {
         let authReq = cpyAuth[req.method.toLowerCase()];
         if(authReq > -1) {
             if(req.query.token) {
-                req.headers.authorization = req.headers.token;
+                req.headers.authorization = req.query.token;
             }
             req.headers.authorization = req.headers.authorization || "";
             let ip =  req.headers['x-forwarded-for'] ||
@@ -71,6 +71,9 @@ app.use(async (req, res, next) => {
                 res.sendStatus(401);
                 res.end(JSON.stringify({error: "Not enough authority"}));
                 return;
+            } else {
+                req.body.uid = result.data.uid;
+                req.body.uauthority = result.data.authority;
             }
         }
     }
@@ -98,4 +101,4 @@ app.use((req, res) => {
 });
 
 // 监听
-app.listen(config.map.port);
+app.listen(config.business.port);
