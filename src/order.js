@@ -1,7 +1,7 @@
 const mongoClient = require("mongodb").MongoClient;
 const config = require("../utils/config").readConfigSync();
 const mongoPath = "mongodb://" + config["db"]["user"] + ":" + config["db"]["pwd"] + "@" + config["db"]["ip"] + ":" + config["db"]["port"] + "/" + config["db"]["db"]["business"];
-const {ObjectID} = require("mongodb");
+const {ObjectID, DBRef} = require("mongodb");
 
 module.exports = {
     async post(params, qs, body) {
@@ -74,11 +74,11 @@ module.exports = {
         }
 
         let result = colOrder.insertOne({
-            from: garFrom,
-            to: garTo,
-            product,
-            sender: body.uid,
-            receiver,
+            from: DBRef("garage", garFrom, "hardware"),
+            to: DBRef("garage", garTo, "hardware"),
+            product: DBRef("product", product),
+            sender: DBRef("user", body.uid),
+            receiver: DBRef("user", receiver),
             status: "unpaid",
             flight: {
                 tasks: [],
@@ -110,7 +110,7 @@ module.exports = {
         let col = db.db(config["db"]["db"]["business"]).collection("order");
         let result;
         if(body.uauthority < 200)
-            result = await col.find({_id: id, $or: [{sender: body.uid}, {receiver: body.uid}]}).toArray();
+            result = await col.find({_id: id, $or: [{"sender.$id": body.uid}, {"receiver.$id": body.uid}]}).toArray();
         else
             result = await col.find({_id: id}).toArray();
         await db.close();
@@ -124,8 +124,31 @@ module.exports = {
     },
     async list() {
         let db = await mongoClient.connect(mongoPath, {useUnifiedTopology: true});
-        let col = db.db(config["db"]["db"]["business"]).collection("order");
-        let result = await col.find({}).toArray();
+        let colGarage = db.db(config["db"]["db"]["hardware"]).collection("garage");
+        let colOrder = db.db(config["db"]["db"]["business"]).collection("order");
+        let colUser = db.db(config["db"]["db"]["business"]).collection("user");
+        let record = await colOrder.find({}).toArray();
+        let result = [];
+
+        for(let i = 0; i < record.length; i++) {
+            result[i] = record[i];
+
+            let recFrom = await record[i].from.fetch();
+            let recTo = await record[i].to.fetch();
+            let recSender = await record[i].sender.fetch();
+            let recReceiver = await record[i].receiver.fetch();
+
+            console.assert(recFrom.length && recTo.length && recSender.length && recReceiver.length);
+
+            delete recSender[0].password;
+            delete recReceiver[0].password;
+
+            result[i].from = recFrom[0];
+            result[i].to = recTo[0];
+            result[i].sender = recSender[0];
+            result[i].receiver = recReceiver[0];
+        }
+
         await db.close();
 
         return result;
@@ -150,7 +173,7 @@ module.exports = {
         let col = db.db(config["db"]["db"]["business"]).collection("order");
         let colFail = db.db(config["db"]["db"]["business"]).collection("fail_order");
         if(body.uauthority < 200) { // 普通用户逻辑
-            let rec = await col.find({_id: id, $or: [{sender: body.uid}, {receiver: body.uid}]}).toArray();
+            let rec = await col.find({_id: id, $or: [{"sender.$id": body.uid}, {"receiver.$id": body.uid}]}).toArray();
             if(rec.length === 0) throw {
                     code: 400,
                     description: "Order doesn't exist"
