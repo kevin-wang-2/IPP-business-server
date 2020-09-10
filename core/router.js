@@ -16,4 +16,8 @@ module.exports = (app) => {
     register(app, "post", "/business/product", product.post);
     register(app, "get", "/business/product/:id", product.get);
     register(app, "delete", "/business/product/:id", product.delete);
+
+    let drone = require("../src/drone");
+    register(app, "get", "/business/drone", drone.list);
+    register(app, "get", "/business/status/:id", drone.status);
 };
