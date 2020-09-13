@@ -20,4 +20,7 @@ module.exports = (app) => {
     let drone = require("../src/drone");
     register(app, "get", "/business/drone", drone.list);
     register(app, "get", "/business/status/:id", drone.status);
+
+    let user = require("../src/user");
+    register(app, "post", "/business/user", user.post);
 };
