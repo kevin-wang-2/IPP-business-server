@@ -23,4 +23,5 @@ module.exports = (app) => {
 
     let user = require("../src/user");
     register(app, "post", "/business/user", user.post);
+    register(app, "get", "/business/user", user.list);
 };
